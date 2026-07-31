@@ -1,0 +1,16 @@
+# brand_corrections.yaml
+# Koreksi nama brand/channel yang sering salah tangkap ASR atau typo user.
+# Format: "bentuk_salah": "bentuk_benar"
+# Case-insensitive saat matching, tapi replacement pakai casing yang didefinisikan di sini.
+# Catatan: entri di sini ditemukan dari observasi dataset Lucid LD60 (lihat analisis awal).
+# Tambahkan entri baru di sini saat pattern serupa ditemukan di dataset produk lain -
+# JANGAN hardcode di cleaners/*.py.
+
+"Lucit": "Lucid"
+"Clotless": "Cordless"
+"codrles": "cordless"
+"dongcheng": "Dongcheng"
+"dck": "DCK"
+"dca": "DCA"
+"Inco": "Ingco"
+
