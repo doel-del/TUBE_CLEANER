@@ -1,0 +1,17 @@
+# flagging_patterns.yaml
+# Pola regex untuk menandai kalimat transcript yang berisiko mengandung
+# ASR error pada klaim numerik-teknis. Kalimat yang cocok TIDAK diubah -
+# hanya ditandai di field `flags` untuk direview/diverifikasi terpisah
+# sebelum dipakai sebagai Claim Evidence.
+#
+# Tambah aturan baru cukup tambah key baru di sini - tidak perlu ubah kode
+# di cleaners/flagging.py.
+
+numeric_claim:
+  # angka + satuan teknis umum - rawan ASR salah tangkap digit/satuan
+  - '\d+[.,]?\d*\s*(volt|amp|mah|ah|watt|mili|mm|gr|gram|kg|celsius|rpm|nm|hz|mikrofarad|farad)\b'
+
+truncated_unit_suspect:
+  # angka+huruf pendek tanpa spasi (mis. "8A") - pola yang terbukti di kasus
+  # nyata sering kehilangan huruf ("8A" seharusnya "8Ah")
+  - '\b\d+[A-Za-z]{1,2}\b'
