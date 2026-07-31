@@ -1,0 +1,15 @@
+# filler_words.yaml
+# Daftar filler/interjeksi yang dihapus dari transcript.
+# Hanya dihapus jika berdiri sendiri sebagai token (bukan sebagai bagian kata lain),
+# dan hanya di posisi yang tidak mengubah makna kalimat (lihat transcript_cleaner.py:
+# filler hanya dibuang di awal/akhir kalimat hasil merge, bukan di tengah kalimat).
+
+standalone_fillers:
+  - "oke"
+  - "ah"
+  - "eh"
+  - "eee"
+  - "hmm"
+  - "nih"
+  - "ya"
+  - "kan"
