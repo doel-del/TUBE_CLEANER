@@ -1,0 +1,18 @@
+# terminology_map.yaml
+# Normalisasi istilah teknis domain power tools yang ditulis tidak konsisten.
+# Whole-word match (regex \b), case-insensitive.
+# Tujuan: menyamakan istilah agar proses Claim Extraction downstream tidak
+# menganggap "impeck dril" dan "impact driver" sebagai entitas berbeda.
+
+"impeck dril": "impact driver"
+"impect driver": "impact driver"
+"impack driver": "impact driver"
+"unfil": "anvil"
+"kianteng": "QIANTENG"   # dugaan brand switch berdasarkan pengucapan; verifikasi manual disarankan
+
+# --- domain: baterai (ditemukan dari video "Cell Baterai Global Tes Baterai Lucid") ---
+"surate": "C-rate"
+"sir rate": "C-rate"
+"hdrin": "High Drain"
+"21770": "21700"        # typo digit ASR, token utuh & tidak ambigu -> aman di-replace
+
