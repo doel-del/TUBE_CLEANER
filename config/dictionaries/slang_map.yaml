@@ -1,0 +1,15 @@
+# slang_map.yaml
+# Normalisasi slang/typo umum bahasa Indonesia informal -> bentuk baku/jelas.
+# Whole-word match, case-insensitive.
+# PERHATIAN: untuk comments, stage ini default OFF di pipeline_config.yaml
+# karena berisiko menghilangkan nuansa/emosi asli komentator.
+
+"klo": "kalo"
+"dri": "dari"
+"vang": "bang"     # typo observed: "Gak punya vang" -> "Gak punya bang"
+"sy": "saya"
+"bgt": "banget"
+"jd": "jadi"
+"yg": "yang"
+"gk": "gak"
+"ga": "gak"
