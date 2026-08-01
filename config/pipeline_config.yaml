@@ -24,6 +24,7 @@ comments:
   normalize_slang: false           # default OFF -> lihat alasan di README/desain (risiko ubah makna opini)
   apply_terminology_correction: false  # default OFF, sama alasan spt slang
   keep_emoji: true                 # emoji dipertahankan di text_clean, hanya markup/ZWSP yg dibersihkan
+  enable_flagging: true            # tandai numeric_claim/price_mention/dst untuk review manual
 
 output:
   root_dir: "clean"
