@@ -33,9 +33,14 @@ truncated_unit_suspect:
     - "pk"     # PK (tenaga kuda versi lokal) - sudah lengkap
     - "hp"
     - "gr"
+    - "v"      # 12v, 20v, 21v - notasi volt informal, sudah lengkap
+    - "w"      # watt - sudah lengkap
+    - "an"     # 700an, 900an - imbuhan approksimasi "sekitar", bukan unit
 
 price_mention:
   # angka + akhiran harga gaya Indonesia - eksplisit, aman diflag tanpa
   # syarat tambahan karena akhirannya sendiri sudah jadi konteks harga.
-  - '\d+[.,]?\d*\s*(rb|ribu|jt|juta)\b'
+  # (?:an)? menampung imbuhan approksimasi ("jutaan", "ribuan") - tanpa ini
+  # \b di akhir gagal match karena "an" nempel langsung tanpa word boundary.
+  - '\d+[.,]?\d*\s*(rb|ribu|jt|juta)(?:an)?\b'
   - 'rp\s*\d[\d.,]*'
