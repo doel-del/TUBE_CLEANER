@@ -28,7 +28,11 @@ def run_pipeline(ref: DatasetRef, config: dict, dictionaries: dict) -> dict:
     raw = load_raw_dataset(ref)
     reports = []
 
-    comment_cleaner = CommentCleaner(config.get("comments", {}), dictionaries)
+    comment_cleaner = CommentCleaner(
+        config.get("comments", {}),
+        dictionaries,
+        channel_name=raw["metadata"].get("channel"),
+    )
     clean_comments, comment_report = comment_cleaner.clean(raw["comments"], ref.dataset_id)
     reports.append(comment_report.as_dict())
 
