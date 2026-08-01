@@ -38,9 +38,22 @@ def _normalize_identity(name: str) -> str:
     return name.lstrip("@").lower().replace(" ", "")
 
 
-def _has_ambiguous_price_mention(text: str, bare_number_pattern: str, context_keywords: list[str]) -> bool:
+def _has_ambiguous_price_mention(
+    text: str,
+    bare_number_pattern: str,
+    context_keywords_strict: list[str],
+    context_keywords_stem: list[str],
+) -> bool:
     """True jika `text` mengandung angka polos (tanpa satuan harga eksplisit)
     DAN salah satu kata kunci konteks harga muncul di teks yang sama.
+
+    Dua mode match kata kunci:
+    - strict (\\bkw\\b): kata utuh, dipakai untuk token pendek yang berisiko
+      jadi prefix kata lain (mis. "rp" adalah prefix dari "RPM" - kalau
+      boundary akhir dilonggarkan, "2200 RPM" akan salah kedeteksi harga).
+    - stem (\\bkw, tanpa boundary akhir): dipakai untuk kata dasar yang lazim
+      dapat imbuhan Bahasa Indonesia (harga+nya, beli+nya, murah+an) - kalau
+      pakai boundary akhir ketat, "harganya" tidak akan pernah match "harga".
 
     Sengaja tidak diproses lewat cleaners/flagging.py::detect_flags() karena
     butuh scan seluruh teks komentar (cari kata kunci), bukan cuma match
@@ -49,7 +62,9 @@ def _has_ambiguous_price_mention(text: str, bare_number_pattern: str, context_ke
     if not re.search(bare_number_pattern, text):
         return False
     text_lower = text.lower()
-    return any(re.search(rf"\b{re.escape(kw)}\b", text_lower) for kw in context_keywords)
+    if any(re.search(rf"\b{re.escape(kw)}\b", text_lower) for kw in context_keywords_strict):
+        return True
+    return any(re.search(rf"\b{re.escape(kw)}", text_lower) for kw in context_keywords_stem)
 
 
 def _collect_authors(comments: list[dict]) -> set[str]:
@@ -202,7 +217,10 @@ class CommentCleaner(Cleaner):
             flags = detect_flags(text, ctx.dictionaries.get("flagging_patterns", {}), dict_corrected)
             price_ctx = ctx.dictionaries.get("price_context", {})
             if price_ctx and _has_ambiguous_price_mention(
-                text, price_ctx.get("bare_number_pattern", r"\b\d{2,4}\b"), price_ctx.get("context_keywords", [])
+                text,
+                price_ctx.get("bare_number_pattern", r"\b\d{2,4}\b"),
+                price_ctx.get("context_keywords_strict", []),
+                price_ctx.get("context_keywords_stem", []),
             ):
                 flags.append("price_mention_ambiguous")
             if flags:
