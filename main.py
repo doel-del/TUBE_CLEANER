@@ -34,7 +34,14 @@ def load_config(config_dir: Path) -> tuple[dict, dict]:
 
     dictionaries = {}
     dict_dir = config_dir / "dictionaries"
-    for name in ("slang_map", "brand_corrections", "terminology_map", "filler_words", "flagging_patterns"):
+    for name in (
+        "slang_map",
+        "brand_corrections",
+        "terminology_map",
+        "filler_words",
+        "flagging_patterns",
+        "price_context",
+    ):
         path = dict_dir / f"{name}.yaml"
         with path.open("r", encoding="utf-8") as f:
             dictionaries[name] = yaml.safe_load(f) or {}
