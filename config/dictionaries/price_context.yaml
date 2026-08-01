@@ -3,22 +3,31 @@
 # polos (mis. "925", "700") TANPA satuan harga eksplisit (rb/ribu/jt/Rp).
 #
 # SENGAJA dipisah dari flagging_patterns.yaml dan TIDAK diproses lewat
-# cleaners/flagging.py::detect_flags() - karena rule ini butuh scan seluruh
-# teks komentar untuk cari kata kunci konteks (bukan cuma match regex lokal
-# di titik angkanya). Angka polos terlalu ambigu untuk diflag tanpa syarat
-# (bisa RPM, berat, tahun, dll) - hanya diflag kalau salah satu kata kunci
-# di bawah ini JUGA muncul di komentar yang sama.
+# cleaners/flagging.py::detect_flags() - rule ini butuh scan seluruh teks
+# komentar untuk cari kata kunci konteks, bukan cuma match regex lokal.
 
-bare_number_pattern: '\b\d{2,4}\b'
+bare_number_pattern: '\b\d{2,4}(?:an)?\b'
 
-context_keywords:
+# Kata kunci yang HARUS match sebagai kata utuh (\bkw\b, boundary di kedua
+# sisi). Dipakai untuk token pendek yang berisiko jadi prefix kata lain kalau
+# boundary akhir dilonggarkan - mis. "rp" adalah prefix dari "RPM", kalau
+# dilonggarkan maka "2200 RPM" akan salah kedeteksi sebagai harga.
+context_keywords_strict:
+  - "rp"
+
+# Kata kunci yang match sebagai AWALAN kata saja (\bkw, tanpa boundary
+# akhir) - supaya menangkap imbuhan Bahasa Indonesia yang sangat umum
+# (harga+nya, beli+nya, dapet+nya, murah+an, 700+an). Aman dilonggarkan
+# karena boundary AWAL tetap mencegah match di tengah kata lain (mis.
+# "berharga" tidak match karena substring "harga" di situ tidak diawali
+# batas kata - didahului huruf 'r', bukan spasi/awal string).
+context_keywords_stem:
   - "harga"
   - "beli"
   - "dapet"
   - "shopee"
   - "lazada"
   - "tokopedia"
-  - "rp"
-  - "cod"
   - "murah"
   - "mahal"
+  - "cod"
