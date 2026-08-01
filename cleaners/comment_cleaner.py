@@ -8,7 +8,12 @@ Transformasi yang dilakukan (semua bisa di-toggle via pipeline_config.yaml):
 - strip HTML markup, ekstrak <a href> ke field `links` terpisah
 - hapus zero-width space & rapikan mention yang menempel ke pesan
 - deteksi komentar duplikat persis (exact match teks, per top-level comment)
+- normalisasi angka desimal locale ID (konsisten dengan transcript)
 - (opsional, default off) normalisasi slang & terminologi
+- tandai is_channel_owner (author == channel pemilik video, dari metadata)
+- flagging: numeric_claim/truncated_unit_suspect/price_mention (regex umum,
+  sama seperti transcript) + price_mention_ambiguous (angka polos + kata
+  kunci harga di komentar yang sama)
 
 Desain: text_raw selalu dipertahankan berdampingan dengan text_clean -
 tidak ada mutasi destruktif, supaya bisa di-audit balik ke sumber asli.
@@ -16,11 +21,35 @@ tidak ada mutasi destruktif, supaya bisa di-audit balik ke sumber asli.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from cleaners.base import Cleaner, CleaningReport
+from cleaners.flagging import detect_flags
 from cleaners.html_utils import extract_links, strip_html, remove_zero_width_chars
-from cleaners.text_normalizer import collapse_whitespace, apply_dictionary
+from cleaners.text_normalizer import collapse_whitespace, apply_dictionary, normalize_decimal_numbers
+
+
+def _normalize_identity(name: str) -> str:
+    """Normalisasi nama untuk perbandingan author vs channel: lowercase,
+    hapus '@', hapus spasi. Perlu karena formatnya beda antar sumber
+    (author komentar "bongkarcordless" vs metadata.channel "Bongkar Cordless").
+    """
+    return name.lstrip("@").lower().replace(" ", "")
+
+
+def _has_ambiguous_price_mention(text: str, bare_number_pattern: str, context_keywords: list[str]) -> bool:
+    """True jika `text` mengandung angka polos (tanpa satuan harga eksplisit)
+    DAN salah satu kata kunci konteks harga muncul di teks yang sama.
+
+    Sengaja tidak diproses lewat cleaners/flagging.py::detect_flags() karena
+    butuh scan seluruh teks komentar (cari kata kunci), bukan cuma match
+    regex lokal di titik angkanya - lihat catatan di price_context.yaml.
+    """
+    if not re.search(bare_number_pattern, text):
+        return False
+    text_lower = text.lower()
+    return any(re.search(rf"\b{re.escape(kw)}\b", text_lower) for kw in context_keywords)
 
 
 def _collect_authors(comments: list[dict]) -> set[str]:
@@ -61,13 +90,27 @@ class _CleanContext:
     strip_html_flag: bool
     extract_links_flag: bool
     normalize_mentions: bool
+    normalize_numbers: bool
+    enable_flagging: bool
     dictionaries: dict
     authors: set[str]
     seen_exact_texts: set[str]
+    channel_identity: str | None
 
 
 class CommentCleaner(Cleaner):
     stage_name = "comments"
+
+    def __init__(self, config: dict, dictionaries: dict, channel_name: str | None = None):
+        """
+        Args:
+            channel_name: nama channel dari metadata.json (mis. "Bongkar Cordless"),
+                dipakai untuk tandai is_channel_owner. Parameter khusus
+                CommentCleaner - tidak mengubah kontrak Cleaner dasar di base.py,
+                karena hanya cleaner ini yang butuh konteks channel.
+        """
+        super().__init__(config, dictionaries)
+        self.channel_identity = _normalize_identity(channel_name) if channel_name else None
 
     def clean(self, raw_data: list[dict], dataset_id: str):
         report = CleaningReport(stage_name=self.stage_name)
@@ -79,9 +122,12 @@ class CommentCleaner(Cleaner):
             strip_html_flag=self.config.get("strip_html", True),
             extract_links_flag=self.config.get("extract_links", True),
             normalize_mentions=self.config.get("normalize_mentions", True),
+            normalize_numbers=self.config.get("normalize_numbers", True),
+            enable_flagging=self.config.get("enable_flagging", True),
             dictionaries=self.dictionaries,
             authors=authors,
             seen_exact_texts=set(),
+            channel_identity=self.channel_identity,
         )
 
         dedup_enabled = self.config.get("dedup_exact_match", True)
@@ -118,13 +164,20 @@ class CommentCleaner(Cleaner):
         text = collapse_whitespace(text)
 
         modified = text != text_raw
+        dict_corrected = False
 
         if ctx.apply_terminology:
             text, changed = apply_dictionary(text, ctx.dictionaries.get("terminology_map", {}))
             modified = modified or changed
+            dict_corrected = dict_corrected or changed
         if ctx.apply_slang:
             text, changed = apply_dictionary(text, ctx.dictionaries.get("slang_map", {}))
             modified = modified or changed
+            dict_corrected = dict_corrected or changed
+        if ctx.normalize_numbers:
+            new_text = normalize_decimal_numbers(text)
+            modified = modified or (new_text != text)
+            text = new_text
 
         is_duplicate = False
         min_length = self.config.get("dedup_min_length", 0)
@@ -139,6 +192,22 @@ class CommentCleaner(Cleaner):
         if modified:
             report.items_modified += 1
 
+        is_channel_owner = (
+            ctx.channel_identity is not None
+            and _normalize_identity(node.get("author", "")) == ctx.channel_identity
+        )
+
+        flags: list[str] = []
+        if ctx.enable_flagging:
+            flags = detect_flags(text, ctx.dictionaries.get("flagging_patterns", {}), dict_corrected)
+            price_ctx = ctx.dictionaries.get("price_context", {})
+            if price_ctx and _has_ambiguous_price_mention(
+                text, price_ctx.get("bare_number_pattern", r"\b\d{2,4}\b"), price_ctx.get("context_keywords", [])
+            ):
+                flags.append("price_mention_ambiguous")
+            if flags:
+                report.flagged_for_review += 1
+
         cleaned_replies = [
             self._clean_node(child, ctx, report, dedup_enabled, comment_id_prefix)
             for child in node.get("replies", [])
@@ -147,11 +216,14 @@ class CommentCleaner(Cleaner):
         return {
             "id": node.get("id"),
             "author": node.get("author"),
+            "is_channel_owner": is_channel_owner,
             "text_raw": text_raw,
             "text_clean": text,
             "links": links,
             "likes": node.get("likes", 0),
             "timestamp": node.get("timestamp"),
             "is_duplicate": is_duplicate,
+            "flags": flags,
+            "needs_review": len(flags) > 0,
             "replies": cleaned_replies,
         }
