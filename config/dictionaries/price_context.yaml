@@ -1,0 +1,24 @@
+# price_context.yaml
+# Dipakai comment_cleaner.py untuk rule "price_mention_ambiguous": angka
+# polos (mis. "925", "700") TANPA satuan harga eksplisit (rb/ribu/jt/Rp).
+#
+# SENGAJA dipisah dari flagging_patterns.yaml dan TIDAK diproses lewat
+# cleaners/flagging.py::detect_flags() - karena rule ini butuh scan seluruh
+# teks komentar untuk cari kata kunci konteks (bukan cuma match regex lokal
+# di titik angkanya). Angka polos terlalu ambigu untuk diflag tanpa syarat
+# (bisa RPM, berat, tahun, dll) - hanya diflag kalau salah satu kata kunci
+# di bawah ini JUGA muncul di komentar yang sama.
+
+bare_number_pattern: '\b\d{2,4}\b'
+
+context_keywords:
+  - "harga"
+  - "beli"
+  - "dapet"
+  - "shopee"
+  - "lazada"
+  - "tokopedia"
+  - "rp"
+  - "cod"
+  - "murah"
+  - "mahal"
