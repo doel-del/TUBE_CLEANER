@@ -1,21 +1,41 @@
 # flagging_patterns.yaml
-# Pola regex untuk menandai kalimat transcript yang berisiko mengandung
-# ASR error pada klaim numerik-teknis. Kalimat yang cocok TIDAK diubah -
-# hanya ditandai di field `flags` untuk direview/diverifikasi terpisah
-# sebelum dipakai sebagai Claim Evidence.
+# Pola regex untuk menandai kalimat/komentar yang berisiko mengandung ASR
+# error atau butuh interpretasi tambahan (mis. klaim numerik-teknis, harga).
+# Yang cocok TIDAK diubah teksnya - hanya ditandai di field `flags` untuk
+# direview/diverifikasi terpisah sebelum dipakai sebagai Claim Evidence.
 #
-# Tambah aturan baru cukup tambah key baru di sini - tidak perlu ubah kode
-# di cleaners/flagging.py.
+# Tambah aturan baru (bentuk list biasa) cukup tambah key baru di sini -
+# tidak perlu ubah kode di cleaners/flagging.py.
 
 numeric_claim:
   # angka + satuan teknis umum - rawan ASR salah tangkap digit/satuan.
-  # Grup opsional "derajat" menampung pola "105 derajat Celcius" (kata
-  # penghubung antara angka & satuan suhu). "celcius" ditambahkan di samping
-  # "celsius" karena ASR/penulis Indonesia sering pakai ejaan ini (huruf c,
-  # bukan s) - ditemukan dari kasus nyata dataset Lucid LD60.
+  # Grup opsional "derajat" menampung pola "105 derajat Celcius". "celcius"
+  # ditambahkan di samping "celsius" karena ejaan ini lazim dipakai penutur
+  # Indonesia - ditemukan dari kasus nyata dataset Lucid LD60.
   - '\d+[.,]?\d*\s*(derajat\s+)?(volt|amp|mah|ah|watt|mili|mm|gr|gram|kg|celsius|celcius|rpm|nm|hz|mikrofarad|farad)\b'
 
 truncated_unit_suspect:
   # angka+huruf pendek tanpa spasi (mis. "8A") - pola yang terbukti di kasus
-  # nyata sering kehilangan huruf ("8A" seharusnya "8Ah")
-  - '\b\d+[A-Za-z]{1,2}\b'
+  # nyata sering kehilangan huruf ("8A" seharusnya "8Ah").
+  # exclude_if_suffix_in: unit yang SUDAH lengkap tidak boleh ikut ke-flag
+  # (mis. "8Ah" itu benar apa adanya) - ditemukan sebagai false positive
+  # dari kasus nyata sebelumnya.
+  patterns:
+    - '\b\d+[A-Za-z]{1,2}\b'
+  exclude_if_suffix_in:
+    - "ah"     # 8Ah, 4Ah - satuan kapasitas baterai, sudah lengkap
+    - "mah"    # 2000mAh - sudah lengkap
+    - "mm"
+    - "kg"
+    - "hz"
+    - "nm"
+    - "cm"
+    - "pk"     # PK (tenaga kuda versi lokal) - sudah lengkap
+    - "hp"
+    - "gr"
+
+price_mention:
+  # angka + akhiran harga gaya Indonesia - eksplisit, aman diflag tanpa
+  # syarat tambahan karena akhirannya sendiri sudah jadi konteks harga.
+  - '\d+[.,]?\d*\s*(rb|ribu|jt|juta)\b'
+  - 'rp\s*\d[\d.,]*'
