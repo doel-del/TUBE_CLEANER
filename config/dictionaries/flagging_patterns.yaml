@@ -8,8 +8,12 @@
 # di cleaners/flagging.py.
 
 numeric_claim:
-  # angka + satuan teknis umum - rawan ASR salah tangkap digit/satuan
-  - '\d+[.,]?\d*\s*(volt|amp|mah|ah|watt|mili|mm|gr|gram|kg|celsius|rpm|nm|hz|mikrofarad|farad)\b'
+  # angka + satuan teknis umum - rawan ASR salah tangkap digit/satuan.
+  # Grup opsional "derajat" menampung pola "105 derajat Celcius" (kata
+  # penghubung antara angka & satuan suhu). "celcius" ditambahkan di samping
+  # "celsius" karena ASR/penulis Indonesia sering pakai ejaan ini (huruf c,
+  # bukan s) - ditemukan dari kasus nyata dataset Lucid LD60.
+  - '\d+[.,]?\d*\s*(derajat\s+)?(volt|amp|mah|ah|watt|mili|mm|gr|gram|kg|celsius|celcius|rpm|nm|hz|mikrofarad|farad)\b'
 
 truncated_unit_suspect:
   # angka+huruf pendek tanpa spasi (mis. "8A") - pola yang terbukti di kasus
